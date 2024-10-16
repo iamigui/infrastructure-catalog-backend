@@ -7,13 +7,21 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/opentracing/opentracing-go"
+	"go.opentelemetry.io/otel"
+)
+
+const name = "otel-collector"
+
+var (
+	tracer = otel.Tracer(name)
+	// meter  = otel.Meter(name)
 )
 
 func GetInfraBase(w http.ResponseWriter, r *http.Request) {
-	// Start tracing span
-	span, ctx := opentracing.StartSpanFromContext(r.Context(), "GetGitlabProjects")
-	defer span.Finish()
+
+	// Start a tracing span
+	ctx, span := tracer.Start(r.Context(), "HandleRequest")
+	defer span.End()
 
 	// Retrieve Database Client from context
 	db := ctx.Value("db").(*sql.DB)

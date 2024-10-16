@@ -1,15 +1,27 @@
 services:
-  jaeger:
-    image: jaegertracing/all-in-one:1.29
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.111.0
+    command: ["--config=/etc/otel-collector.yaml"]
+    volumes:
+      - ./bin/otel/otel-collector.yaml:/etc/otel-collector.yaml
     ports:
-      - "5775:5775/udp"
-      - "6831:6831/udp"
-      - "6832:6832/udp"
-      - "5778:5778"
-      - "16686:16686"
-      - "14268:14268"
-      - "14250:14250"
-      - "9411:9411"
+      - 4317:4317
+    networks:
+      - app-network
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    volumes:
+      - ./bin/prometheus/prometheus.yaml:/etc/prometheus/prometheus.yml
+    ports:
+      - 9090:9090
+    networks:
+      - app-network
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.60
+    ports:
+      - 16686:16686
     networks:
       - app-network
 
@@ -47,9 +59,6 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
-    environment:
-      - JAEGER_AGENT_HOST=jaeger
-      - JAEGER_AGENT_PORT=6831
     networks:
       - app-network
 
