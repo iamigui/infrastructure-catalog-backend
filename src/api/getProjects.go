@@ -17,10 +17,10 @@ var (
 	// meter  = otel.Meter(name)
 )
 
-func GetInfraBase(w http.ResponseWriter, r *http.Request) {
+func GetProjectsBase(w http.ResponseWriter, r *http.Request) {
 
 	// Start a tracing span
-	ctx, span := tracer.Start(r.Context(), "HandleRequest")
+	ctx, span := tracer.Start(r.Context(), "GetProjectsBase")
 	defer span.End()
 
 	// Retrieve Database Client from context

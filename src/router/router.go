@@ -28,7 +28,7 @@ func NewRouter() *mux.Router {
 
 	r.Use(middleware.ConnectToDatabase(dbname, dbuser, dbpass, dbhost, dbport))
 
-	r.HandleFunc("/GetInfra", api.GetInfraBase).Methods(("GET"))
+	r.HandleFunc("/GetInfra", api.GetProjectsBase).Methods(("GET"))
 
 	log.Println("Server running on localhost:8000")
 
