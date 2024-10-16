@@ -1,5 +1,7 @@
 # Infrastructure Catalog Backend
 
-Packages:
+Install Packages
 
-- github.com/gorilla/mux
+```Golan
+go mod install
+```
