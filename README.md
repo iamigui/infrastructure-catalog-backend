@@ -11,3 +11,5 @@ Run the application
 ```shell
 docker-compose up -d
 ```
+
+## TODO: ADD ENDPOINTS FOR POSTMAN

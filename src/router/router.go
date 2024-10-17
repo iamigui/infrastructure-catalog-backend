@@ -4,14 +4,24 @@ import (
 	"infrastructure-catalog-backend/src/api"
 	"infrastructure-catalog-backend/src/middleware"
 	"log"
+	"net/http"
 	"os"
 
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
+	"github.com/rs/cors"
 )
 
 func NewRouter() *mux.Router {
 	r := mux.NewRouter().StrictSlash(true)
+
+	// Add CORS support
+	c := cors.New(cors.Options{
+		AllowedOrigins:   []string{"*"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"},
+		AllowedHeaders:   []string{"Content-Type"},
+		AllowCredentials: true,
+	})
 
 	err := godotenv.Load("../.env")
 
@@ -30,7 +40,9 @@ func NewRouter() *mux.Router {
 
 	r.HandleFunc("/GetInfra", api.GetProjectsBase).Methods(("GET"))
 
-	log.Println("Server running on localhost:8000")
+	handler := c.Handler(r)
 
+	log.Println("Server running on localhost:8000")
+	log.Fatal(http.ListenAndServe(":8000", handler))
 	return r
 }
