@@ -1,12 +1,14 @@
 package api
 
 import (
-	"database/sql"
 	"encoding/json"
 	"infrastructure-catalog-backend/src/models"
 	"log"
 	"net/http"
+	"os"
 
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo" // Import options for Find
 	"go.opentelemetry.io/otel"
 )
 
@@ -14,47 +16,58 @@ const name = "otel-collector"
 
 var (
 	tracer = otel.Tracer(name)
-	// meter  = otel.Meter(name)
 )
 
 func GetProjectsBase(w http.ResponseWriter, r *http.Request) {
 
+	dbname := os.Getenv("DB_NAME")
 	// Start a tracing span
 	ctx, span := tracer.Start(r.Context(), "GetProjectsBase")
 	defer span.End()
 
-	// Retrieve Database Client from context
-	db := ctx.Value("db").(*sql.DB)
-	rows, err := db.Query("SELECT id, name, description, json_data FROM projects")
+	// Retrieve MongoDB Client from context
+	client := ctx.Value("mongoClient").(*mongo.Client)
+	collection := client.Database(dbname).Collection("projects")
+
+	// Query the collection to retrieve all projects
+	cursor, err := collection.Find(ctx, bson.D{}) // mongo.D{} is used for an empty filter
 	if err != nil {
-		log.Println("Error querying the database:", err)
-		http.Error(w, "Internal Server Error authenticating in Handler", http.StatusInternalServerError)
+		log.Println("Error querying the MongoDB database:", err)
+		http.Error(w, "Internal Server Error querying the database", http.StatusInternalServerError)
 		return
 	}
-	defer rows.Close()
+	defer cursor.Close(ctx)
 
 	// Prepare projects to send as JSON
 	var projectsResult []models.Project
-	for rows.Next() {
+
+	for cursor.Next(ctx) {
 		var project models.Project
-		if err := rows.Scan(&project.ID, &project.Name, &project.Description, &project.JSONData); err != nil {
-			log.Println("Error scanning row:", err)
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		if err := cursor.Decode(&project); err != nil {
+			log.Println("Error decoding document:", err)
+			http.Error(w, "Internal Server Error decoding document", http.StatusInternalServerError)
 			return
 		}
 		projectsResult = append(projectsResult, project)
 	}
 
+	// Check for cursor errors
+	if err := cursor.Err(); err != nil {
+		log.Println("Cursor error:", err)
+		http.Error(w, "Internal Server Error during cursor iteration", http.StatusInternalServerError)
+		return
+	}
+
 	// Log each project
 	for _, project := range projectsResult {
-		log.Printf("Project Name: %s, Description: %s, ID: %d, Infrastructure: %s", project.Name, project.Description, project.ID, project.JSONData)
+		log.Printf("ID: %s, Project Name: %s, Description: %s, Infrastructure: %v", project.ID, project.Name, project.Description, project.JSONData)
 	}
 
 	// Set Content-Type header and send JSON response
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(projectsResult); err != nil {
 		log.Println("Error encoding JSON:", err)
-		http.Error(w, "Internal Server Error Encoding JSON", http.StatusInternalServerError)
+		http.Error(w, "Internal Server Error encoding JSON", http.StatusInternalServerError)
 		return
 	}
 }

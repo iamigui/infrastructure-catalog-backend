@@ -36,9 +36,10 @@ func NewRouter() *mux.Router {
 	dbhost := os.Getenv("DB_HOST")
 	dbport := os.Getenv("DB_PORT")
 
-	r.Use(middleware.ConnectToDatabase(dbname, dbuser, dbpass, dbhost, dbport))
+	r.Use(middleware.ConnectToMongoDB(dbname, dbuser, dbpass, dbhost, dbport))
 
-	r.HandleFunc("/GetInfra", api.GetProjectsBase).Methods(("GET"))
+	r.HandleFunc("/getProjects", api.GetProjectsBase).Methods(("GET"))
+	r.HandleFunc("/createProject", api.CreateProject).Methods(("POST"))
 
 	handler := c.Handler(r)
 

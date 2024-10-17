@@ -2,40 +2,44 @@ package middleware
 
 import (
 	"context"
-	"database/sql"
-	"fmt"
 	"log"
 	"net/http"
+	"time"
 
-	_ "github.com/lib/pq"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// ConnectToDatabase is a middleware that connects to the database.
-func ConnectToDatabase(dbname, dbuser, dbpassword, dbhost, dbport string) func(http.Handler) http.Handler {
+// ConnectToMongoDB is a middleware that connects to the MongoDB database.
+func ConnectToMongoDB(dbname, dbuser, dbpass, dbhost, dbport string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Construct the connection string
-			psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", dbhost, dbport, dbuser, dbpassword, dbname)
+			// Construct the MongoDB URI
+			uri := "mongodb://" + dbuser + ":" + dbpass + "@" + dbhost + ":" + dbport + "/" + dbname
 
-			// Open the database connection
-			db, err := sql.Open("postgres", psqlInfo)
+			// Create a new client and connect to the server
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel() // Ensure that the context is cancelled after we are done
+
+			client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
 			if err != nil {
-				log.Printf("Error connecting to database: %v", err)
-				http.Error(w, "Could not connect to database", http.StatusInternalServerError)
+				log.Printf("Error creating MongoDB client: %v", err)
+				http.Error(w, "Could not create MongoDB client", http.StatusInternalServerError)
 				return
 			}
-			// Test the connection
-			if err := db.Ping(); err != nil {
-				log.Printf("Database unreachable: %v", err)
-				http.Error(w, "Database unreachable", http.StatusInternalServerError)
+
+			// Check the connection
+			if err := client.Ping(ctx, nil); err != nil {
+				log.Printf("Error connecting to MongoDB: %v", err)
+				http.Error(w, "Could not connect to MongoDB", http.StatusInternalServerError)
 				return
 			}
-			defer db.Close()
+			defer client.Disconnect(ctx) // Ensure disconnection when done
 
-			log.Println("Successfully connected to the database.")
+			log.Println("Successfully connected to MongoDB.")
 
-			// Add the database connection to the request context
-			r = r.WithContext(context.WithValue(r.Context(), "db", db))
+			// Add the MongoDB client to the request context
+			r = r.WithContext(context.WithValue(r.Context(), "mongoClient", client))
 
 			// Call the next handler
 			next.ServeHTTP(w, r)
