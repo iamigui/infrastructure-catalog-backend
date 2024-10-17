@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -37,11 +38,19 @@ func CreateProject(w http.ResponseWriter, r *http.Request) {
 		// Generate a new UUID for the project's ID
 		project.ID = uuid.New().String()
 
-		// Log the project details
-		log.Println("Project ID:", project.ID)
-		log.Println("Project Name:", project.Name)
-		log.Println("Project Description:", project.Description)
-		log.Println("Project JSONData:", project.JSONData)
+		// Validate the project name and description
+		if !validateInput(project.Name) || !validateInput(project.Description) {
+			log.Println("Invalid input: Name and description must contain valid characters.")
+			http.Error(w, "Invalid input: Name and description must contain valid characters.", http.StatusBadRequest)
+			return
+		}
+
+		// Additional validation on jsonData if necessary
+		if project.JSONData == nil {
+			log.Println("Invalid JSON data: jsonData cannot be empty.")
+			http.Error(w, "Invalid JSON data: jsonData cannot be empty.", http.StatusBadRequest)
+			return
+		}
 
 		// Insert the data into the MongoDB collection
 		_, err = collection.InsertOne(ctx, project)
@@ -59,4 +68,10 @@ func CreateProject(w http.ResponseWriter, r *http.Request) {
 	} else {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 	}
+}
+
+// validateInput checks if a string contains only valid characters
+func validateInput(input string) bool {
+	regex := regexp.MustCompile(`^[a-zA-Z0-9\s.,-]*$`)
+	return regex.MatchString(input) && len(input) > 0
 }
