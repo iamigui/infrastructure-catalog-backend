@@ -2,6 +2,12 @@
 
 Install Packages
 
-```Golan
+```Go
 go mod install
+```
+
+Run the application
+
+```shell
+docker-compose up -d
 ```
