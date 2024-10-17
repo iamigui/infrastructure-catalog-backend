@@ -47,4 +47,6 @@ curl -X POST http://localhost:8000/createProject \
 
 ### Get Project by ID
 
-TODO
+```shell
+curl http://localhost:8000/getProject?id=123
+```

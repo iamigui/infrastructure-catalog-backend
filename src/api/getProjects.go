@@ -8,7 +8,7 @@ import (
 	"os"
 
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo" // Import options for Find
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.opentelemetry.io/otel"
 )
 
@@ -30,7 +30,7 @@ func GetProjectsBase(w http.ResponseWriter, r *http.Request) {
 	collection := client.Database(dbname).Collection("projects")
 
 	// Query the collection to retrieve all projects
-	cursor, err := collection.Find(ctx, bson.D{}) // mongo.D{} is used for an empty filter
+	cursor, err := collection.Find(ctx, bson.D{}) // bson.D{} is used for an empty filter
 	if err != nil {
 		log.Println("Error querying the MongoDB database:", err)
 		http.Error(w, "Internal Server Error querying the database", http.StatusInternalServerError)
@@ -44,9 +44,24 @@ func GetProjectsBase(w http.ResponseWriter, r *http.Request) {
 	for cursor.Next(ctx) {
 		var project models.Project
 		if err := cursor.Decode(&project); err != nil {
-			log.Println("Error decoding document:", err)
-			http.Error(w, "Internal Server Error decoding document", http.StatusInternalServerError)
-			return
+
+			// Attempt to handle jsonData stored as a string by decoding it manually
+			rawProject := bson.M{}
+			if err := cursor.Decode(&rawProject); err == nil {
+				// Check if jsonData is a string and try to parse it into a map
+				if jsonDataStr, ok := rawProject["jsonData"].(string); ok {
+					var jsonDataMap map[string]interface{}
+					if err := json.Unmarshal([]byte(jsonDataStr), &jsonDataMap); err == nil {
+						project.JSONData = jsonDataMap
+					} else {
+						log.Println("Failed to parse jsonData string:", err)
+					}
+				}
+			} else {
+				log.Println("Failed to decode raw document:", err)
+				http.Error(w, "Internal Server Error decoding document", http.StatusInternalServerError)
+				return
+			}
 		}
 		projectsResult = append(projectsResult, project)
 	}
@@ -60,7 +75,7 @@ func GetProjectsBase(w http.ResponseWriter, r *http.Request) {
 
 	// Log each project
 	for _, project := range projectsResult {
-		log.Printf("ID: %s, Project Name: %s, Description: %s, Infrastructure: %v", project.ID, project.Name, project.Description, project.JSONData)
+		log.Printf("ID: %s, Project Name: %s, Description: %s, JSONData: %v", project.ID, project.Name, project.Description, project.JSONData)
 	}
 
 	// Set Content-Type header and send JSON response

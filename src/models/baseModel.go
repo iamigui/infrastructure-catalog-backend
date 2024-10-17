@@ -1,9 +1,9 @@
 package models
 
-// * Model Project
+// Project data model
 type Project struct {
-	ID          string                 `json:"id"`
-	Name        string                 `json:"name"`
-	Description string                 `json:"description"`
-	JSONData    map[string]interface{} `json:"jsonData"`
+	ID          string                 `json:"id" bson:"id"`
+	Name        string                 `json:"name" bson:"name"`
+	Description string                 `json:"description" bson:"description"`
+	JSONData    map[string]interface{} `json:"jsonData" bson:"jsondata"`
 }
